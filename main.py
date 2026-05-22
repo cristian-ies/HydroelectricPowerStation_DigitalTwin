@@ -219,6 +219,13 @@ def ejecutar_simulacion(
         consumo_predicho_mw = kw_a_mw(consumo_predicho_kw)
         consigna_rpm = rpm_setpoint_desde_mw(consumo_predicho_mw, turbina.MaxRPM)
 
+        time_pred_dt = primer_timestamp.to_pydatetime()
+        if time_pred_dt.tzinfo is None:
+            time_pred_dt = time_pred_dt.replace(tzinfo=timezone.utc)
+        else:
+            time_pred_dt = time_pred_dt.astimezone(timezone.utc)
+        time_pred_iso = time_pred_dt.isoformat()
+
         cambiar_dia = None
         for timestamp, consumo_kw in day_series.items():
             consumo_real_kw = round(float(consumo_kw), 6)
@@ -238,9 +245,9 @@ def ejecutar_simulacion(
                 energia_kwh = calcular_energia_kwh(potencia_kw, tiempo_update)
                 energia_acumulada_kwh = round(energia_acumulada_kwh + energia_kwh, 6)
 
-                evento_timestamp = timestamp + timedelta(seconds=paso * tiempo_update)
+                evento_timestamp = datetime.now(timezone.utc).isoformat()
                 evento = {
-                    "@timestamp": evento_timestamp.replace(tzinfo=timezone.utc).isoformat(),
+                    "@timestamp": evento_timestamp,
                     "source": "gemelo-digital-hidro",
                     "component": "central_hidroelectrica",
                     "turbina": turbina.get_state(),
@@ -251,6 +258,7 @@ def ejecutar_simulacion(
                         "consigna_rpm": round(consigna_rpm, 2),
                         "potencia_kw": potencia_kw,
                         "energia_acumulada_kwh": energia_acumulada_kwh,
+                        "time-pred": time_pred_iso,
                     },
                 }
                 evento["logstash_document"] = construir_documento_logstash(evento)
